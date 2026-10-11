@@ -2,21 +2,25 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\StoreMedicalCaseRequest;
+use App\Http\Requests\UpdateMedicalCaseRequest;
 use App\Models\MedicalCase;
 use Illuminate\Http\Request;
-use Illuminate\Validation\Rule;
+use Illuminate\Support\Facades\Gate;
 
 class MedicalCaseController extends Controller
 {
     public function index(Request $request)
     {
+        Gate::authorize('viewAny', MedicalCase::class);
+
         $cases = MedicalCase::query()
             ->when($request->filled('search'), function ($query) use ($request) {
                 $search = $request->search;
 
                 $query->where(function ($q) use ($search) {
                     $q->where('case_number', 'like', "%{$search}%")
-                      ->orWhere('surgeon_name', 'like', "%{$search}%");
+                        ->orWhere('surgeon_name', 'like', "%{$search}%");
                 });
             })
             ->when($request->filled('status'), function ($query) use ($request) {
@@ -44,25 +48,18 @@ class MedicalCaseController extends Controller
 
     public function create()
     {
+        Gate::authorize('create', MedicalCase::class);
+
         return view('cases.create');
     }
 
-    public function store(Request $request)
+    public function store(StoreMedicalCaseRequest $request)
     {
-        $validated = $request->validate([
-            'case_number' => ['required', 'string', 'max:255', 'unique:cases,case_number'],
-            'patient_reference' => ['required', 'string', 'max:255'],
-            'surgeon_name' => ['required', 'string', 'max:255'],
-            'implant_type' => ['required', 'string', 'max:255'],
-            'status' => ['required', Rule::in([
-                'Draft', 'Planning', 'In Review',
-                'Approved', 'Completed', 'Cancelled',
-            ])],
-            'priority' => ['required', Rule::in(['Low', 'Medium', 'High'])],
-            'surgery_date' => ['nullable', 'date'],
-        ]);
+        Gate::authorize('create', MedicalCase::class);
 
+        $validated = $request->validated();
         $validated['created_by'] = $request->user()->id;
+
         $medicalCase = MedicalCase::create($validated);
 
         return redirect()
@@ -72,33 +69,25 @@ class MedicalCaseController extends Controller
 
     public function show(MedicalCase $medicalCase)
     {
+        Gate::authorize('view', $medicalCase);
+
         return view('cases.show', compact('medicalCase'));
     }
 
     public function edit(MedicalCase $medicalCase)
     {
+        Gate::authorize('update', $medicalCase);
+
         return view('cases.edit', compact('medicalCase'));
     }
 
-    public function update(Request $request, MedicalCase $medicalCase)
-    {
-        $validated = $request->validate([
-            'case_number' => [
-                'required', 'string', 'max:255',
-                Rule::unique('cases', 'case_number')->ignore($medicalCase->id),
-            ],
-            'patient_reference' => ['required', 'string', 'max:255'],
-            'surgeon_name' => ['required', 'string', 'max:255'],
-            'implant_type' => ['required', 'string', 'max:255'],
-            'status' => ['required', Rule::in([
-                'Draft', 'Planning', 'In Review',
-                'Approved', 'Completed', 'Cancelled',
-            ])],
-            'priority' => ['required', Rule::in(['Low', 'Medium', 'High'])],
-            'surgery_date' => ['nullable', 'date'],
-        ]);
+    public function update(
+        UpdateMedicalCaseRequest $request,
+        MedicalCase $medicalCase
+    ) {
+        Gate::authorize('update', $medicalCase);
 
-        $medicalCase->update($validated);
+        $medicalCase->update($request->validated());
 
         return redirect()
             ->route('cases.show', $medicalCase)
@@ -107,6 +96,8 @@ class MedicalCaseController extends Controller
 
     public function destroy(MedicalCase $medicalCase)
     {
+        Gate::authorize('delete', $medicalCase);
+
         $medicalCase->delete();
 
         return redirect()

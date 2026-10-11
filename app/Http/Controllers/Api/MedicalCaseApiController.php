@@ -3,9 +3,9 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\StoreMedicalCaseRequest;
+use App\Http\Requests\UpdateMedicalCaseRequest;
 use App\Models\MedicalCase;
-use Illuminate\Http\Request;
-use Illuminate\Validation\Rule;
 
 class MedicalCaseApiController extends Controller
 {
@@ -41,26 +41,9 @@ class MedicalCaseApiController extends Controller
     }
 
     // POST /api/cases
-    public function store(Request $request)
+    public function store(StoreMedicalCaseRequest $request)
     {
-        $validated = $request->validate([
-            'case_number' => [
-                'required', 'string', 'max:255',
-                'unique:cases,case_number',
-            ],
-            'patient_reference' => ['required', 'string', 'max:255'],
-            'surgeon_name' => ['required', 'string', 'max:255'],
-            'implant_type' => ['required', 'string', 'max:255'],
-            'status' => ['required', Rule::in([
-                'Draft', 'Planning', 'In Review',
-                'Approved', 'Completed', 'Cancelled',
-            ])],
-            'priority' => ['required', Rule::in([
-                'Low', 'Medium', 'High',
-            ])],
-            'surgery_date' => ['nullable', 'date'],
-        ]);
-
+        $validated = $request->validated();
         $validated['created_by'] = $request->user()->id;
 
         $medicalCase = MedicalCase::create($validated);
@@ -73,8 +56,10 @@ class MedicalCaseApiController extends Controller
     }
 
     // PUT /api/cases/{id}
-    public function update(Request $request, string $id)
-    {
+    public function update(
+        UpdateMedicalCaseRequest $request,
+        string $id
+    ) {
         $medicalCase = MedicalCase::find($id);
 
         if (! $medicalCase) {
@@ -84,26 +69,7 @@ class MedicalCaseApiController extends Controller
             ], 404);
         }
 
-        $validated = $request->validate([
-            'case_number' => [
-                'required', 'string', 'max:255',
-                Rule::unique('cases', 'case_number')
-                    ->ignore($medicalCase->id),
-            ],
-            'patient_reference' => ['required', 'string', 'max:255'],
-            'surgeon_name' => ['required', 'string', 'max:255'],
-            'implant_type' => ['required', 'string', 'max:255'],
-            'status' => ['required', Rule::in([
-                'Draft', 'Planning', 'In Review',
-                'Approved', 'Completed', 'Cancelled',
-            ])],
-            'priority' => ['required', Rule::in([
-                'Low', 'Medium', 'High',
-            ])],
-            'surgery_date' => ['nullable', 'date'],
-        ]);
-
-        $medicalCase->update($validated);
+        $medicalCase->update($request->validated());
 
         return response()->json([
             'success' => true,

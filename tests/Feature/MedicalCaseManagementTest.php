@@ -12,9 +12,22 @@ class MedicalCaseManagementTest extends TestCase
 {
     use RefreshDatabase;
 
+    private function createMedicalCase(User $admin, string $caseNumber = 'CASE-TEST-001'): MedicalCase
+    {
+        return MedicalCase::create([
+            'case_number' => $caseNumber,
+            'patient_reference' => 'PAT-TEST-001',
+            'surgeon_name' => 'Dr. Test',
+            'implant_type' => 'Knee',
+            'status' => 'Planning',
+            'priority' => 'Medium',
+            'created_by' => $admin->id,
+        ]);
+    }
+
     public function test_admin_can_login_with_valid_credentials(): void
     {
-        $user = User::factory()->create([
+        User::factory()->create([
             'email' => 'admin@example.com',
             'password' => 'Admin@12345',
             'role' => 'Admin',
@@ -49,17 +62,12 @@ class MedicalCaseManagementTest extends TestCase
 
     public function test_guest_cannot_access_protected_api(): void
     {
-        $response = $this->getJson('/api/cases');
-
-        $response->assertUnauthorized();
+        $this->getJson('/api/cases')->assertUnauthorized();
     }
 
     public function test_admin_can_create_medical_case(): void
     {
-        $admin = User::factory()->create([
-            'role' => 'Admin',
-        ]);
-
+        $admin = User::factory()->create(['role' => 'Admin']);
         Sanctum::actingAs($admin);
 
         $response = $this->postJson('/api/cases', [
@@ -82,19 +90,8 @@ class MedicalCaseManagementTest extends TestCase
 
     public function test_duplicate_case_number_is_rejected(): void
     {
-        $admin = User::factory()->create([
-            'role' => 'Admin',
-        ]);
-
-        MedicalCase::create([
-            'case_number' => 'CASE-DUPLICATE',
-            'patient_reference' => 'PAT-OLD',
-            'surgeon_name' => 'Dr. Old',
-            'implant_type' => 'Knee',
-            'status' => 'Planning',
-            'priority' => 'Medium',
-            'created_by' => $admin->id,
-        ]);
+        $admin = User::factory()->create(['role' => 'Admin']);
+        $this->createMedicalCase($admin, 'CASE-DUPLICATE');
 
         Sanctum::actingAs($admin);
 
@@ -111,34 +108,135 @@ class MedicalCaseManagementTest extends TestCase
             ->assertJsonValidationErrors(['case_number']);
     }
 
-    public function test_viewer_cannot_delete_medical_case(): void
+    public function test_viewer_can_view_medical_cases(): void
     {
-        $admin = User::factory()->create([
-            'role' => 'Admin',
-        ]);
+        $admin = User::factory()->create(['role' => 'Admin']);
+        $medicalCase = $this->createMedicalCase($admin);
 
-        $medicalCase = MedicalCase::create([
-            'case_number' => 'CASE-VIEWER-001',
-            'patient_reference' => 'PAT-VIEWER-001',
+        Sanctum::actingAs(
+            User::factory()->create(['role' => 'Viewer'])
+        );
+
+        $this->getJson('/api/cases')
+            ->assertOk()
+            ->assertJsonPath('success', true);
+
+        $this->getJson('/api/cases/' . $medicalCase->id)
+            ->assertOk()
+            ->assertJsonPath('data.id', $medicalCase->id);
+    }
+
+    public function test_viewer_cannot_create_medical_case(): void
+    {
+        Sanctum::actingAs(
+            User::factory()->create(['role' => 'Viewer'])
+        );
+
+        $this->postJson('/api/cases', [
+            'case_number' => 'CASE-VIEWER-CREATE',
+            'patient_reference' => 'PAT-001',
             'surgeon_name' => 'Dr. Test',
             'implant_type' => 'Knee',
             'status' => 'Planning',
             'priority' => 'Medium',
-            'created_by' => $admin->id,
+        ])->assertForbidden();
+
+        $this->assertDatabaseMissing('cases', [
+            'case_number' => 'CASE-VIEWER-CREATE',
         ]);
+    }
 
-        $viewer = User::factory()->create([
-            'role' => 'Viewer',
+    public function test_admin_can_update_medical_case(): void
+    {
+        $admin = User::factory()->create(['role' => 'Admin']);
+        $medicalCase = $this->createMedicalCase($admin);
+
+        Sanctum::actingAs($admin);
+
+        $this->putJson('/api/cases/' . $medicalCase->id, [
+            'case_number' => $medicalCase->case_number,
+            'patient_reference' => $medicalCase->patient_reference,
+            'surgeon_name' => 'Dr. Updated',
+            'implant_type' => 'Hip',
+            'status' => 'Approved',
+            'priority' => 'High',
+        ])->assertOk()
+            ->assertJsonPath('success', true);
+
+        $this->assertDatabaseHas('cases', [
+            'id' => $medicalCase->id,
+            'surgeon_name' => 'Dr. Updated',
+            'status' => 'Approved',
         ]);
+    }
 
-        Sanctum::actingAs($viewer);
+    public function test_viewer_cannot_update_medical_case(): void
+    {
+        $admin = User::factory()->create(['role' => 'Admin']);
+        $medicalCase = $this->createMedicalCase($admin);
 
-        $response = $this->deleteJson('/api/cases/' . $medicalCase->id);
+        Sanctum::actingAs(
+            User::factory()->create(['role' => 'Viewer'])
+        );
 
-        $response->assertForbidden();
+        $this->putJson('/api/cases/' . $medicalCase->id, [
+            'case_number' => $medicalCase->case_number,
+            'patient_reference' => $medicalCase->patient_reference,
+            'surgeon_name' => 'Dr. Unauthorized',
+            'implant_type' => 'Knee',
+            'status' => 'Planning',
+            'priority' => 'Medium',
+        ])->assertForbidden();
+
+        $this->assertDatabaseMissing('cases', [
+            'id' => $medicalCase->id,
+            'surgeon_name' => 'Dr. Unauthorized',
+        ]);
+    }
+
+    public function test_viewer_cannot_delete_medical_case(): void
+    {
+        $admin = User::factory()->create(['role' => 'Admin']);
+        $medicalCase = $this->createMedicalCase($admin, 'CASE-VIEWER-DELETE');
+
+        Sanctum::actingAs(
+            User::factory()->create(['role' => 'Viewer'])
+        );
+
+        $this->deleteJson('/api/cases/' . $medicalCase->id)
+            ->assertForbidden();
 
         $this->assertDatabaseHas('cases', [
             'id' => $medicalCase->id,
         ]);
+    }
+
+    public function test_admin_can_delete_medical_case(): void
+    {
+        $admin = User::factory()->create(['role' => 'Admin']);
+        $medicalCase = $this->createMedicalCase($admin, 'CASE-ADMIN-DELETE');
+
+        Sanctum::actingAs($admin);
+
+        $this->deleteJson('/api/cases/' . $medicalCase->id)
+            ->assertOk()
+            ->assertJsonPath('success', true);
+
+        $this->assertDatabaseMissing('cases', [
+            'id' => $medicalCase->id,
+        ]);
+    }
+
+    public function test_api_logout_revokes_current_token(): void
+    {
+        $admin = User::factory()->create(['role' => 'Admin']);
+        $token = $admin->createToken('test-token')->plainTextToken;
+
+        $this->withToken($token)
+            ->postJson('/api/logout')
+            ->assertOk()
+            ->assertJsonPath('success', true);
+
+        $this->assertDatabaseCount('personal_access_tokens', 0);
     }
 }
