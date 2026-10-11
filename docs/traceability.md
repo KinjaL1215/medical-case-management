@@ -1,6 +1,8 @@
 # Requirements Traceability
 
-This document maps the Medical Case Management assignment requirements to their implementation in the project.
+This document maps the Medical Case Management System requirements to their implementation in the project.
+
+## Requirements Mapping
 
 | Requirement | Implementation | Status |
 |---|---|---|
@@ -14,23 +16,42 @@ This document maps the Medical Case Management assignment requirements to their 
 | Create medical case | Web controller and create form | Implemented |
 | Edit medical case | Web controller and edit form | Implemented |
 | View case details | Case detail Blade view | Implemented |
-| Admin-only web actions | `admin` middleware | Implemented |
+| Admin-only web actions | `admin` middleware and authorization checks | Implemented |
 | Sanctum API authentication | API authentication controller and `auth:sanctum` | Implemented |
 | List and view cases API | `GET /api/cases` and `GET /api/cases/{id}` | Implemented |
 | Create case API | `POST /api/cases` | Implemented |
 | Update case API | `PUT /api/cases/{id}` | Implemented |
 | Delete case API | `DELETE /api/cases/{id}` | Implemented |
+| Input validation | Store and update Form Requests | Implemented |
+| Authorization policies | `MedicalCasePolicy` and Gate checks | Implemented |
 | Database constraints | Migrations for users and cases | Implemented |
-| Sample data | `MedicalCaseSeeder` | Implemented |
+| Sample data | Database seeders | Implemented |
 | Automated feature tests | `MedicalCaseManagementTest` | Implemented |
 | Database documentation | `docs/database.md` | Documented |
 | Requirements traceability | `docs/traceability.md` | Documented |
 
 ## Testing Notes
 
-The automated test suite currently passes all 8 tests with 18 assertions.
+The automated test suite currently passes all **16 tests with 39 assertions**.
 
-Manual API tests have verified successful login, case listing, single-case retrieval, case creation, case updates, and case deletion. Viewer deletion was also tested and returned `403 Forbidden`.
+The tests cover:
+
+- Successful login with valid credentials.
+- Rejection of invalid login credentials.
+- Protection of authenticated API endpoints.
+- Medical case creation by Admin users.
+- Validation of duplicate case numbers.
+- Read-only case access for Viewer users.
+- Prevention of unauthorized case creation, updates, and deletion.
+- Successful case updates and deletion by Admin users.
+- API logout and token revocation.
+- Web access permissions for case listing, details, creation, and editing.
+
+Run the test suite with:
+
+```bash
+php artisan test
+```
 
 ## Assumptions
 
