@@ -11,11 +11,12 @@ A Laravel-based web application for managing medical cases, with role-based acce
 - **Pagination:** Display 10 cases per page.
 - **REST API:** Token-based authentication using Laravel Sanctum.
 - **Validation:** Validate case details and prevent duplicate case numbers.
-- **Automated tests:** Feature tests for authentication, case creation, validation, and authorization.
+- **Automated tests:** Tests for authentication, case CRUD operations, validation, API access, and web authorization.
 
 ## Technology Stack
 
-- PHP and Laravel
+- PHP 8.4
+- Laravel 13
 - MySQL
 - Blade Templates
 - Laravel Sanctum
@@ -29,48 +30,60 @@ A Laravel-based web application for managing medical cases, with role-based acce
 
 ## Installation and Setup
 
-1. Clone the repository:
+### 1. Clone the repository
 
-   ```bash
-   git clone https://github.com/KinjaL1215/medical-case-management.git
-   cd medical-case-management
-   ```
+```bash
+git clone https://github.com/KinjaL1215/medical-case-management.git
+cd medical-case-management
+```
 
-2. Install PHP dependencies:
+### 2. Install PHP dependencies
 
-   ```bash
-   composer install
-   ```
+```bash
+composer install
+```
 
-3. Create your environment file:
+### 3. Create your environment file
 
-   ```bash
-   copy .env.example .env
-   ```
+On Windows PowerShell:
 
-   On macOS or Linux, use `cp .env.example .env`.
+```powershell
+Copy-Item .env.example .env
+```
 
-4. Generate the application key:
+On macOS or Linux:
 
-   ```bash
-   php artisan key:generate
-   ```
+```bash
+cp .env.example .env
+```
 
-5. Create a MySQL database named `medical_case_management`. Configure your local database credentials in `.env`.
+### 4. Generate the application key
 
-6. Run database migrations and seed sample data:
+```bash
+php artisan key:generate
+```
 
-   ```bash
-   php artisan migrate --seed
-   ```
+### 5. Configure the database
 
-7. Start the application:
+Create a MySQL database named `medical_case_management`.
 
-   ```bash
-   php artisan serve
-   ```
+Configure your local database credentials in the `.env` file.
 
-8. Open `http://127.0.0.1:8000` in your browser.
+### 6. Run migrations and seed sample data
+
+```bash
+php artisan migrate --seed
+```
+
+### 7. Start the application
+
+```bash
+php artisan serve
+```
+
+### 8. Open the application
+
+Visit [http://127.0.0.1:8000](http://127.0.0.1:8000) in your browser.
 
 ## Development Login Accounts
 
@@ -81,11 +94,11 @@ The database seeder provides these development-only accounts:
 | Admin | `admin@example.com` | `Admin@12345` |
 | Viewer | `viewer@example.com` | `Viewer@12345` |
 
-These credentials are for local development and demonstration only. Do not use them in production.
+These credentials are intended for local development and demonstration only. Do not use them in production.
 
 ## API Endpoints
 
-All case endpoints except login require a valid Sanctum bearer token.
+All case endpoints except login require authentication using a valid Sanctum bearer token.
 
 | Method | Endpoint | Access |
 |---|---|---|
@@ -103,8 +116,8 @@ Send a POST request to `/api/login` with JSON credentials:
 
 ```json
 {
-  "email": "admin@example.com",
-  "password": "Admin@12345"
+    "email": "admin@example.com",
+    "password": "Admin@12345"
 }
 ```
 
@@ -125,6 +138,8 @@ Run the automated test suite:
 php artisan test
 ```
 
+The current test suite contains 16 passing tests with 39 assertions, covering authentication, case management, validation, and role-based access control.
+
 ## Documentation
 
 - [Database Documentation](docs/database.md)
@@ -132,8 +147,10 @@ php artisan test
 
 ## Security Notes
 
-- Admin-only operations are protected by role middleware.
+- Admin-only operations are protected by role middleware and authorization checks.
 - Passwords are stored using Laravel's password hashing.
 - API access uses Laravel Sanctum tokens.
 - The `.env` file contains local configuration and must not be committed.
-- Use dummy data for development and testing.
+- The `.env.example` file should contain placeholder values, never real credentials.
+- Use dummy patient data for development and testing.
+- Change the example development passwords before using any deployed environment.
