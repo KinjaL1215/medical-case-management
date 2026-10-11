@@ -12,8 +12,10 @@ class MedicalCaseManagementTest extends TestCase
 {
     use RefreshDatabase;
 
-    private function createMedicalCase(User $admin, string $caseNumber = 'CASE-TEST-001'): MedicalCase
-    {
+    private function createMedicalCase(
+        User $admin,
+        string $caseNumber = 'CASE-TEST-001'
+    ): MedicalCase {
         return MedicalCase::create([
             'case_number' => $caseNumber,
             'patient_reference' => 'PAT-TEST-001',
@@ -197,7 +199,10 @@ class MedicalCaseManagementTest extends TestCase
     public function test_viewer_cannot_delete_medical_case(): void
     {
         $admin = User::factory()->create(['role' => 'Admin']);
-        $medicalCase = $this->createMedicalCase($admin, 'CASE-VIEWER-DELETE');
+        $medicalCase = $this->createMedicalCase(
+            $admin,
+            'CASE-VIEWER-DELETE'
+        );
 
         Sanctum::actingAs(
             User::factory()->create(['role' => 'Viewer'])
@@ -214,7 +219,10 @@ class MedicalCaseManagementTest extends TestCase
     public function test_admin_can_delete_medical_case(): void
     {
         $admin = User::factory()->create(['role' => 'Admin']);
-        $medicalCase = $this->createMedicalCase($admin, 'CASE-ADMIN-DELETE');
+        $medicalCase = $this->createMedicalCase(
+            $admin,
+            'CASE-ADMIN-DELETE'
+        );
 
         Sanctum::actingAs($admin);
 
@@ -238,5 +246,43 @@ class MedicalCaseManagementTest extends TestCase
             ->assertJsonPath('success', true);
 
         $this->assertDatabaseCount('personal_access_tokens', 0);
+    }
+
+    public function test_viewer_cannot_access_web_create_or_edit_pages(): void
+    {
+        $admin = User::factory()->create(['role' => 'Admin']);
+        $medicalCase = $this->createMedicalCase(
+            $admin,
+            'CASE-WEB-001'
+        );
+
+        $viewer = User::factory()->create(['role' => 'Viewer']);
+
+        $this->actingAs($viewer)
+            ->get('/cases/create')
+            ->assertForbidden();
+
+        $this->actingAs($viewer)
+            ->get('/cases/' . $medicalCase->id . '/edit')
+            ->assertForbidden();
+    }
+
+    public function test_viewer_can_view_web_case_list_and_details(): void
+    {
+        $admin = User::factory()->create(['role' => 'Admin']);
+        $medicalCase = $this->createMedicalCase(
+            $admin,
+            'CASE-WEB-002'
+        );
+
+        $viewer = User::factory()->create(['role' => 'Viewer']);
+
+        $this->actingAs($viewer)
+            ->get('/cases')
+            ->assertOk();
+
+        $this->actingAs($viewer)
+            ->get('/cases/' . $medicalCase->id)
+            ->assertOk();
     }
 }
